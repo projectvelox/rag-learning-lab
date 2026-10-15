@@ -1,0 +1,43 @@
+# This repository is public. Anything below must never be committed.
+
+# Real documents (client files belong in SharePoint/OneDrive, never here)
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.pptx
+*.msg
+*.eml
+*.mp4
+*.m4a
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+
+# Personal learning exports from the site (keep your notes private)
+rag-notes-*.md
+rag-progress-*.json
+
+# Local tooling, models and caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+tools/.models/
+.models/
+node_modules/
+*.db
+
+# Local test pages (they overwrite browser progress)
+_test-*.html
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
