@@ -1,6 +1,8 @@
 import { cardsUnlocked, renderLevel } from "./engine.js";
 import { BM25 } from "./lib/search.js";
 import * as S from "./lib/state.js";
+import { micButton, voiceSettings } from "./lib/voice.js";
+import { initTutor } from "./tutor/chat.js";
 import { $, card, download, h, toast } from "./ui.js";
 import l1 from "./levels/l1-embeddings.js";
 import l2 from "./levels/l2-chunking.js";
@@ -16,6 +18,7 @@ import boss from "./levels/boss.js";
 const LEVELS = [l1, l2, l3, l4, l5, l6, l7, l8, l9, boss];
 const app = $("#app");
 let ctx = null;
+let currentLevel = null; // what the tutor treats as "the page you're on"
 
 const unlocked = (i) => i === 0 || S.state.settings.unlockAll || S.state.levels[LEVELS[i - 1].id]?.done;
 
@@ -109,7 +112,7 @@ function review() {
     stage.replaceChildren(
       h("p", { class: "eyebrow" }, `${c.level.icon} ${c.level.title} · card ${done + 1} of ${total}`),
       h("h2", { class: "card-q" }, c.q), answer,
-      h("div", { class: "row" }, h("button", { class: "btn primary", onclick: (e) => { back.hidden = false; e.currentTarget.hidden = true; } }, "Reveal")),
+      h("div", { class: "row" }, h("button", { class: "btn primary", onclick: (e) => { back.hidden = false; e.currentTarget.hidden = true; } }, "Reveal"), micButton(answer)),
       back);
   };
   app.replaceChildren(h("header", { class: "level-header" }, h("a", { href: "#/", class: "back" }, "← Quest map"), h("h1", {}, "Review deck"),
@@ -138,11 +141,14 @@ function notes() {
     started.length ? null : card(null, h("p", {}, "Nothing yet. Finish the “Explain it back” step in a level and it shows up here.")),
     ...started.map((l) => {
       const st = S.state.levels[l.id];
-      const area = h("textarea", { rows: 4, "aria-label": `Notes for ${l.title}`, onchange: (e) => { st.explain = e.target.value; S.save(); toast("Saved", "xp"); } });
+      const saveNote = () => { st.explain = area.value; S.save(); toast("Saved", "xp"); };
+      const area = h("textarea", { rows: 4, "aria-label": `Notes for ${l.title}`, onchange: saveNote });
       area.value = st.explain;
       return card(`${l.icon} ${l.title}`, h("p", { class: "prompt" }, l.explain.prompt), area,
+        h("div", { class: "row" }, micButton(area, { onEnd: (said) => { if (said) saveNote(); } })),
         h("details", {}, h("summary", {}, "Reference explanation"), h("p", {}, l.explain.model)));
     }),
+    card("Voice", voiceSettings()),
     card("Keep your learning",
       h("p", {}, "Everything lives in this browser's storage. Export your notes as Markdown to keep them anywhere (a notes app, a private repo), and export progress to move to another browser."),
       h("div", { class: "row wrap" },
@@ -161,6 +167,7 @@ function notes() {
 function route() {
   const [, view, id] = (location.hash || "#/").split("/");
   window.scrollTo(0, 0);
+  currentLevel = view === "level" ? LEVELS.find((l) => l.id === id) || null : null;
   if (view === "level") {
     const i = LEVELS.findIndex((l) => l.id === id);
     if (i === -1) { location.hash = "#/"; return; }
@@ -200,6 +207,7 @@ async function boot() {
     return;
   }
   S.onChange(renderHeader);
+  initTutor({ levels: LEVELS, getLevel: () => currentLevel });
   window.addEventListener("hashchange", route);
   route();
 }

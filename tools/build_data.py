@@ -9,6 +9,7 @@ mode loads in the browser. Reranker: ms-marco-MiniLM-L-6-v2 cross-encoder.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 from pathlib import Path
@@ -21,11 +22,19 @@ from corpus import CLIENT, DOCS, PAIRS, QUERIES, QUERY_PREFIX, RELATIONS, SENTEN
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "assets" / "data" / "lab-data.json"
+TUTOR_OUT = ROOT / "assets" / "data" / "tutor-vectors.json"
 CACHE = Path(os.environ.get("LAB_MODEL_CACHE", ROOT / "tools" / ".models"))  # git-ignored
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 RERANK_MODEL = "Xenova/ms-marco-MiniLM-L-6-v2"
 LABELS = {"contract": "contract / sign-off", "business_process": "client business process",
           "project_doc": "project document"}
+
+
+def fnv1a(text: str) -> int:
+    h = 0x811C9DC5
+    for b in text.encode("utf-8"):
+        h = ((h ^ b) * 0x01000193) & 0xFFFFFFFF
+    return h
 
 
 def rounded(v: np.ndarray, places: int = 5) -> list[float]:
@@ -84,6 +93,21 @@ def main() -> None:
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size // 1024} KB): "
           f"{len(chunks)} chunks, {len(queries)} queries, {len(sentences)} sentences")
+
+    # Tutor passages (exported from the lessons by `node tools/export-kb.mjs`), embedded and
+    # quantised to int8: 384 bytes per passage instead of ~2.7 KB of JSON floats. Each entry
+    # carries an FNV-1a hash of its text so the site can tell when a lesson changed.
+    kb_file = ROOT / "tools" / "kb-passages.json"
+    if kb_file.exists():
+        texts = json.loads(kb_file.read_text(encoding="utf-8"))
+        vecs = embed(texts)
+        q = np.clip(np.round(vecs * 127), -127, 127).astype(np.int8)
+        tutor = {"model": EMBED_MODEL, "dim": int(q.shape[1]), "scale": 127,
+                 "hashes": [fnv1a(t) for t in texts], "int8": base64.b64encode(q.tobytes()).decode()}
+        TUTOR_OUT.write_text(json.dumps(tutor, separators=(",", ":")), encoding="utf-8")
+        print(f"wrote {TUTOR_OUT.relative_to(ROOT)} ({TUTOR_OUT.stat().st_size // 1024} KB): {len(texts)} tutor passages")
+    else:
+        print("skipped tutor vectors: run `node tools/export-kb.mjs` first")
 
     # Diagnostics, used to write the lessons so they match what the model actually does.
     for p in pairs:

@@ -1,5 +1,6 @@
 // Renders one level: problem -> idea -> lab -> predict-then-reveal challenges -> explain it back -> complete.
 import { award, level, save, state } from "./lib/state.js";
+import { micButton } from "./lib/voice.js";
 import { card, h, toast, xpToast } from "./ui.js";
 
 const CORRECT_XP = 20;
@@ -72,7 +73,7 @@ export function renderLevel(root, def, ctx) {
   } }, "Save & compare");
   sections.push(card("Explain it back",
     h("p", { class: "prompt" }, def.explain.prompt),
-    area, h("div", { class: "row" }, saveBtn, h("span", { class: "hint" }, "Saved in this browser only. Export them anytime from My notes.")),
+    area, h("div", { class: "row" }, saveBtn, micButton(area), h("span", { class: "hint" }, "Saved in this browser only. Export them anytime from My notes.")),
     model));
 
   function renderCompletion() {

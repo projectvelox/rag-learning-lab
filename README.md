@@ -37,12 +37,37 @@ incident reports, because real bugs never say which chapter they belong to.
 | 9 | Answer from evidence | Grounding and citations |
 | 🐉 | The pipeline dragon | Everything, interleaved |
 
+## The tutor (💬 on every page)
+
+Ask questions like “what is a chunk again?” by typing or by voice. The tutor is itself a
+small RAG system over the lab's own content: lessons, takeaways, review cards, challenge
+explanations and a glossary, chunked into ~200 passages with a contextual header each.
+
+- **Offline (default):** BM25 keyword search, boosted towards the level you're on; the answer
+  is the best passage, with links back to its level and a “How I found this” trace.
+- **Hybrid:** load the meaning model in ⚙ and vector search joins in (RRF fusion). Passage
+  vectors are precomputed and int8-quantised (`assets/data/tutor-vectors.json`, ~100 KB).
+- **Claude (optional):** paste your own Anthropic API key in ⚙ and `claude-opus-5-5` writes the
+  answer from the retrieved passages, with citations.
+
+## Voice
+
+- 🎤 buttons on every text box (explanations, review answers, notes, the tutor) use the
+  browser's speech recognition: English (US), English (Philippines) or Filipino/Taglish.
+  Works in Chrome, Edge and Safari, not Firefox.
+- The tutor can read its answers aloud (on-device speech synthesis).
+
 ## Privacy
 
 - Progress, notes and review schedules are stored only in your browser (`localStorage`).
   Export your notes as Markdown from **My notes**.
-- The site sends nothing anywhere. The optional *live mode* downloads the embedding model
-  (~34 MB) from Hugging Face through the jsDelivr CDN and runs it in your browser.
+- **Dictation:** Chrome and Edge send the audio to Google or Microsoft to transcribe it.
+- **Claude mode:** your API key stays in this browser (forgotten when the tab closes unless you
+  tick “remember”), is never included in progress exports, and is sent only to
+  `api.anthropic.com`, together with your question and the retrieved lab passages. This is a
+  static site with no server, so use a key with a spend limit and revoke it when you're done.
+- The optional live/hybrid mode downloads the embedding model (~34 MB) from Hugging Face
+  through the jsDelivr CDN and runs it in your browser.
 
 ## Run it locally
 
@@ -61,7 +86,12 @@ reranker scores. To change the corpus, edit `tools/corpus.py` and rebuild:
 
 ```bash
 pip install -r tools/requirements.txt
-python tools/build_data.py      # prints diagnostics so lessons can be checked against the model
+node tools/export-kb.mjs        # export the tutor's passages from the lessons
+python tools/build_data.py      # embeddings, meaning map, reranker scores, tutor vectors
 node tools/check.mjs            # retriever ranks per question, as the site computes them
 node tools/check-levels.mjs     # checks the Chunk Lab missions are solvable
+node tools/check-tutor.mjs      # what the tutor retrieves for typical questions
 ```
+
+If you edit a lesson and skip the rebuild, the tutor still works: passages whose text hash no
+longer matches are embedded in the browser when hybrid mode is switched on.

@@ -32,6 +32,7 @@ tools/.models/
 .models/
 node_modules/
 *.db
+tools/kb-passages.json
 
 # Local test pages (they overwrite browser progress)
 _test-*.html
